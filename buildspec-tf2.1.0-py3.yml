@@ -1,0 +1,53 @@
+version: 0.2
+
+env:
+  variables:
+    TENSORFLOW_VERSION: '2.1.0'
+    IMAGE_REPO_NAME: 'threeguys/images'
+    IMAGE_PREFIX: 'sagemaker-base-tf2.1.0'
+    GITHUB_REPO: 'sagemaker-tensorflow-container'
+    SETUP_FILE: 'setup_cmds.sh'
+    SETUP_CMDS: '#!/bin/bash\npip install --upgrade pip\npip install -U -e .\npip install -U -e .[test]'
+
+phases:
+  pre_build:
+    commands:
+      - start-dockerd
+      - ACCOUNT=$(aws --region $AWS_DEFAULT_REGION sts --endpoint-url https://sts.$AWS_DEFAULT_REGION.amazonaws.com get-caller-identity --query 'Account' --output text)
+      - ECR_REPO="$ACCOUNT.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME"
+
+  build:
+    commands:
+      # install
+      - pip3 install -U -e .[test]
+
+      # run flake8
+      - tox -e flake8,twine
+
+      - cpu_dockerfile="Dockerfile.cpu"
+      - cpu_tag="$IMAGE_PREFIX-cpu-py3"
+
+      - gpu_dockerfile="Dockerfile.gpu"
+      - gpu_tag="$IMAGE_PREFIX-gpu-py3"
+
+      # Setup build paths
+      - root_dir=$(pwd)
+      - build_artifacts=$root_dir/docker/build_artifacts
+      - build_dir="$root_dir/docker/2.1.0/py3"
+
+      # prepare build context
+      - cp $build_artifacts/* $build_dir/
+      - cd $build_dir
+
+      # build py3 images
+
+      # build cpu image
+      - docker build -f $cpu_dockerfile -t $ECR_REPO:$cpu_tag . "
+
+      # build gpu image
+      - docker build -f $gpu_dockerfile -t $ECR_REPO:$gpu_tag . "
+
+      # push images to ecr
+      - $(aws ecr get-login --registry-ids $ACCOUNT --no-include-email --region $AWS_DEFAULT_REGION)
+      - docker push $ECR_REPO:$cpu_tag
+      - docker push $ECR_REPO:$gpu_tag"
