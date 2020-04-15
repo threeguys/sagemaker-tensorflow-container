@@ -5,9 +5,6 @@ env:
     TENSORFLOW_VERSION: '2.1.0'
     IMAGE_REPO_NAME: 'threeguys/images'
     IMAGE_PREFIX: 'sagemaker-base-tf2.1.0'
-    GITHUB_REPO: 'sagemaker-tensorflow-container'
-    SETUP_FILE: 'setup_cmds.sh'
-    SETUP_CMDS: '#!/bin/bash\npip install --upgrade pip\npip install -U -e .\npip install -U -e .[test]'
 
 phases:
   pre_build:
